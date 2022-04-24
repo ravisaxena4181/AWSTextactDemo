@@ -1,31 +1,102 @@
 ﻿@{
     ViewBag.Title = "Home Page";
 }
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>AWS Textract Demo</h2>
+            <hr />
+        </div>
+    </div>
+    <div class="row" style="min-height:400px;">
+        <div class="col-md-4">
+            <input type="hidden" id="notefileuploaded" name="notefileuploaded" />
+            <label>Browse File(image,pdf)</label>
+            <input type="file" name="fileToUpload" id="fileToUpload" onchange="fileSelected();" accept=".jpeg,.jpg,.gif,.png,.pdf,.doc,.docx,.xls,.xlsx" class="btn btn-default" />
+            <span class="progress-bar" style="display:none;">uploading</span>
+            <br />
 
-<div class="jumbotron">
-    <h1>ASP.NET</h1>
-    <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-    <p><a href="https://asp.net" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
-</div>
+            <button type="button" class="btn btn-success" onclick="ExtractButton(this);">Extract Text</button>
+        </div>
+        <div class="col-md-8" style="border-left: 1px solid #eeeeee; min-height: 400px; ">
+            <label>HTML</label>
+            <pre class="htmldata" style="max-height: 400px;min-height: 200px">
+               
+            </pre>
+            <label>JSON</label>
+            <pre class="jsondata" style="max-height: 400px;min-height:200px;">
+               
+            </pre>
+        </div>
 
-<div class="row">
-    <div class="col-md-4">
-        <h2>Getting started</h2>
-        <p>
-            ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-            enables a clean separation of concerns and gives you full control over markup
-            for enjoyable, agile development.
-        </p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Get more libraries</h2>
-        <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Web Hosting</h2>
-        <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
     </div>
 </div>
+<script>
+   
+     function fileSelected() {
+        console.log('called: fileSelected()');
+        var fd = new FormData();
+        fd.append("fileToUpload", document.getElementById('fileToUpload').files[0]);
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", '@Url.Action("UploadFile", "Home")', true);
+
+        xhr.onload = function () {
+            console.log('loaded');
+        };
+        xhr.upload.onprogress = function (event) {
+            $(".progress-bar").show();
+            if (event.lengthComputable) {
+                var complete = (event.loaded / event.total * 99 | 0);
+                //console.log(complete);
+            }
+        }
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState == 4) {
+                img = (xhr.responseText);
+                console.log(img);
+                $('#notefileuploaded').val(img);
+            }
+        }
+        xhr.send(fd);
+    }
+    function ExtractButton(t) {
+        var _btn = $(t);
+    
+        if ($('#notefileuploaded').val().length <= 0) {
+            alert('Please browse file to process.')
+            return;
+        }
+        $(_btn).html('Extracting...');
+        $(_btn).attr("disabled", true);
+        $.ajax({
+            type: "GET",
+            url: '@Url.Action("ExtractFileDataAsync", "Home")' + '?filename=' + $('#notefileuploaded').val(),
+            dataType: "html",
+            success: function (response) {
+                console.log(response);
+                var obj = JSON.parse(response);
+                if (obj.success == 1) {
+                    $('.jsondata').html(JSON.stringify(obj.data));
+                    for (var i = 0; i < obj.data.length; i++) {
+                        $('.htmldata').append('<code>' + obj.data[i]._value + '</code><br>');
+                        console.log(obj.data[i]._value);
+                    }
+                } else {
+                    alert(obj.message);
+                }
+                $(_btn).html('Extract Text');
+                $(_btn).attr("disabled", false);
+            },
+            failure: function (response) {
+                alert(response.responseText);
+                $(_btn).html('Extract Text');
+                $(_btn).attr("disabled", false);
+            },
+            error: function (response) {
+                alert(response.responseText);
+                $(_btn).html('Extract Text');
+                $(_btn).attr("disabled", false);
+            }
+        });
+    }
+</script>
